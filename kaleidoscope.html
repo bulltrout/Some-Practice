@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>万花镜</title>
+    <style>
+        * {
+            user-select: none;
+        }
+
+        .wrap {
+            position: relative;
+            width:300px;
+            height:300px;
+            margin:10px;
+            display:flex;
+            align-items:center;
+            justify-content: center;
+        }
+        
+        #select {
+            /* top和left固定，解决元素自动居中的问题 */
+            top: 0;
+            left: 0;
+            position: absolute;
+            transform-origin:0 0;
+            z-index: 1;
+        }
+
+        #target {
+            border:1px solid;
+        }
+
+        #show {
+            background-color:rgb(173, 171, 171);
+        }
+
+        #prompt {
+            position:absolute;
+            display:none;
+            z-index: 2;
+            background-color:rgb(187, 186, 186);
+        }
+
+        #container {
+            background-color: #4FACDB;
+        }
+
+        .control {
+            position:relative;
+            z-index: 3;
+        }
+
+    </style>
+    <script type="text/javascript" src="kaleidoscope.js"></script>
+    <script>
+        window.onload = function () {
+            const cvs = document.getElementById("container"),
+                target = document.getElementById("target"),
+                show = document.getElementById("show"),
+                select = document.getElementById("select"),
+                selectCtx = select.getContext("2d"),
+                edgeNum = document.getElementById("edgeNum"),
+                label = document.getElementById("prompt");
+                img = new Image(),
+                reader = new FileReader();
+            let angle = 0,
+                temp = kaleido(cvs.width*0.4),
+                haveBorder = false;
+
+            function showImg (kaleidoPiece){
+                const showCtx = show.getContext("2d"),
+                    radius = kaleidoPiece ? kaleidoPiece.width : select.width;
+
+                show.width = show.height = radius*1.3;
+
+                showCtx.clearRect(0,0,show.width,show.height);
+                showCtx.translate(0,show.height*0.2);
+                showCtx.beginPath();
+                showCtx.moveTo(0,0);
+                showCtx.arc(0,0,radius,0,Math.PI/parseInt(edgeNum.value));
+                showCtx.closePath();
+                showCtx.clip();
+                if(kaleidoPiece && kaleidoPiece.width>0){
+                    showCtx.drawImage(kaleidoPiece,0,0);
+                }else{
+                    showCtx.rotate(-angle * Math.PI/180);
+                    showCtx.drawImage(target,target.offsetLeft-select.offsetLeft,target.offsetTop-select.offsetTop);
+                }
+                haveBorder && showCtx.stroke();
+                kaleidoscope(cvs,parseInt(edgeNum.value),show);
+
+                temp = kaleidoPiece;
+            }
+
+            img.src = "images/image1.png";
+
+            document.getElementById("file").onchange = function() {
+                reader.readAsDataURL(this.files[0]);
+                reader.onload = () => img.src = reader.result;
+            }
+
+            img.onload = () => {
+                target.width = img.width;
+                target.height = img.height;
+                target.getContext("2d").drawImage(img,0,0);
+                scale(target);
+
+                select.width = select.height = 150;
+                edgeNum.oninput();
+            }
+
+            edgeNum.oninput = () => {
+                selectCtx.clearRect(0,0,select.width,select.height);
+                selectCtx.beginPath();
+                selectCtx.moveTo(0,0);
+                selectCtx.arc(0,0,select.width,0,Math.PI/(parseInt(edgeNum.value)<2?2:parseInt(edgeNum.value)));
+                selectCtx.closePath();
+                selectCtx.stroke();
+                showImg(temp);
+            }
+
+            select.addEventListener("mousemove" , event => {
+                if (!selectCtx.isPointInPath(event.offsetX,event.offsetY)) {
+                    select.style.cursor = "";
+                    select.onmousedown = null;
+                    return;
+                }
+
+                const temp = document.createElement("canvas"),
+                    tempCtx = temp.getContext("2d");
+                
+                temp.width = temp.height = select.width;
+                tempCtx.beginPath();
+                tempCtx.arc(0,0,temp.width,0,Math.PI / parseInt(edgeNum.value),false);
+                tempCtx.arc(0,0,temp.width-10,Math.PI / parseInt(edgeNum.value),0,true);
+                if(!tempCtx.isPointInPath(event.offsetX,event.offsetY)){
+                    select.style.cursor = "move";
+                    finiteDrag(select,target);
+                    label.style.display="none";
+                    return;
+                }
+
+                const distance = (dx,dy) => Math.round(Math.sqrt(dx*dx + dy*dy));
+                const updateLabel = () => {
+                    select.style.cursor = "e-resize";
+                    label.innerHTML = select.width;
+                    label.style.display = "block";
+                    label.style.top = event.pageY + "px";
+                    label.style.left = event.pageX - 50 + "px";
+                }
+                updateLabel();
+                select.onmousedown = ()=>{
+                    document.onmousemove = event =>{
+                        select.height = select.width = distance(event.offsetX, event.offsetY)+10;
+                        updateLabel();
+                        edgeNum.oninput();
+                    }
+                }
+
+            });
+
+            select.onmouseup = () => showImg();
+
+            target.addEventListener("mousewheel",() =>showImg());
+
+            select.onmousewheel=()=>{
+                target.onmousewheel(event);
+                showImg();
+                return false;
+            }
+
+            show.onclick = () => {
+                haveBorder = !haveBorder;
+                label.innerHTML = haveBorder?"去除边框":"添加边框";
+                showImg(temp);
+            }
+
+            show.onmouseenter = () => {
+                label.style.display = "block";
+                show.onmousemove = (event) => {
+                    label.innerHTML = haveBorder?"去除边框":"添加边框";
+                    label.style.top = event.pageY  + "px";
+                    label.style.left = event.pageX + 30 + "px";
+                }
+                show.onmouseleave = () => label.style.display = "none";
+            }
+
+
+            document.getElementById("counterclockwise").onclick = ()=> {
+                angle -= parseInt(document.getElementById("angle").value);
+                select.style.transform = "rotate(" + angle + "deg)";
+                showImg();
+            }
+
+            document.getElementById("clockwise").onclick = ()=> {
+                angle += parseInt(document.getElementById("angle").value);
+                select.style.transform = "rotate(" + angle + "deg)";
+                showImg();
+            }
+
+            let timer = null;
+            cvs.onclick = ()=> {
+                clearTimeout(timer);
+                timer = setTimeout(() => {
+                    showImg(kaleido(cvs.width*0.4));
+                }, 200);
+            }
+
+            cvs.ondblclick = ()=>{
+                clearTimeout(timer);
+                if (cvs.onmousewheel) {
+                    cvs.onmousewheel = null;
+                    label.innerText = "单击刷新图案\n双击解锁缩放";
+                }else{
+                    scale(cvs);
+                    label.innerText =  "双击锁定";
+                }
+            }
+
+            cvs.onmouseenter = ()=> {
+                label.style.display = "block";
+                label.innerText = cvs.onmousewheel?"双击锁定":"单击刷新图案\n双击解锁缩放";
+                cvs.onmousemove = (e)=>{
+                    label.style.top = e.pageY + "px";
+                    label.style.left = e.pageX + 30 +"px";
+                }
+                cvs.onmouseleave = ()=> label.style.display = "none";
+            }
+            
+        }
+    </script>
+</head>
+
+<body>
+    <div id="prompt"></div>
+    <h1 style="position:relative;left:200px;">万花筒</h1>
+    <input type="file" id="file" class="control" style="width: 180px;">
+    <label for="edgeNum" class="control"><b>万花镜边数:</b></label>
+    <input type="number" id="edgeNum" class="control" style="width:30px" value="6" min="1" max="100">
+    <label for="angle" class="control"><b>旋转角度:</b></label>
+    <input type="number" id="angle" class="control" style="width:40px;" value="30" min="0">
+    <button id="counterclockwise" class="control">逆时针</button>
+    <button id="clockwise" class="control">顺时针</button>
+    <br><br>
+    <canvas id="container" width=600 height=600></canvas>
+    <div style="margin:30px 0 0 500px;color:red;"><b>预览</b></div>
+    <div style="display:flex;justify-content:space-between;width:660px;">
+        <div class="wrap">
+            <canvas id="select"></canvas>
+            <canvas id="target"></canvas>
+        </div>
+        <div class="wrap">
+            <canvas id="show"></canvas>
+        </div>
+    </div>
+</body>
+
+</html>

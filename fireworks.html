@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>fireworks</title>
+
+    <style>
+        #label{
+            top: 0;
+            left: 0;
+            height:10;
+            background-color:gray;
+            position: absolute;
+            display: block;
+        }
+    </style>
+
+    <script type="text/javascript" src="fireworks.js"></script>
+    <script>
+        window.onload = function () {
+
+            const cvs = document.getElementById("canvas"),
+                ctx = cvs.getContext("2d"),
+                label = document.getElementById("label");
+                
+
+            cvs.width = cvs.parentNode.offsetWidth;
+            //处理canvas的宽度变化，其高度已在html中固定为600
+            window.onresize = ()=>
+                cvs.width = document.documentElement.clientWidth;
+
+            cvs.onclick = letOffFireworks;
+
+            let timer;
+            cvs.ondblclick = ()=> {
+                timer = timer ? clearInterval(timer) : setInterval(letOffFireworks, 200);
+                label.innerText = timer ? "双击取消连发" : "单击发射烟花，双击连发";
+            };
+
+            let lastTime, labelX, labelY;
+            cvs.onmousemove = (e)=>{
+                lastTime = new Date().getTime();
+                label.style.display = "none";
+                [labelX, labelY]= [e.pageX, e.pageY];
+            }
+            cvs.onmouseout = () => lastTime = null;
+
+            window.setInterval(() => {
+                if (lastTime != null && new Date().getTime() - lastTime > 500) {
+                    label.style.display = "block";
+                    label.style.left = labelX + 10 + "px";
+                    label.style.top = labelY + 10 + "px";
+                }
+            }, 500);
+
+            let animation, explosion = [];
+            function letOffFireworks() {
+                explosion.push(new Fireworks(cvs));
+
+                cancelAnimationFrame(animation);
+                (function () {
+                    ctx.clearRect(0, 0, cvs.width, cvs.height);
+                    if (explosion[0]) {
+                        for (let i = explosion.length; i--;) {
+                            explosion[i].fire() && explosion.splice(i, 1);
+                        }
+                        animation = window.requestAnimationFrame(arguments.callee);
+                    }
+                })();
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <div style="background-color:black;user-select: none;">
+        <canvas id="canvas" height="600"></canvas>
+        <div id="label">单击发射烟花，双击连射</div>
+    </div>
+</body>
+
+</html>

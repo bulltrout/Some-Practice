@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>imageCut</title>
+    <style>
+        #files {
+            font-size: 16px;
+            user-select: none;
+            width:230px;
+        }
+
+        #tools {
+            display: flex;
+            align-items: center;
+        }
+
+        #selectHeight, #selectWidth {
+            width: 40px;
+        }
+
+        #canvas, #select {
+            border: 2px solid rgb(19, 9, 151);
+        }
+
+        #select {
+            border-color:red;
+            position: absolute;
+            width: 64px;
+            height: 64px;
+            top:0;
+            left:0;
+            user-select: none;
+        }
+
+        #target {
+            margin: 8px 0;
+        }
+
+        #container {
+            width: 540px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background-color: aquamarine;
+        }
+
+        #bag {
+            width: 500px;
+            height: 300px;
+            background-color: burlywood;
+            overflow: auto;
+            list-style: none;
+        }
+
+        #bag > li {
+            /* color:rgb(255, 255, 255); */
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            margin-top: 5px;
+            padding-bottom: 5px;
+            border-bottom: 1px dashed;
+        }
+
+        #fillet {
+            width: 100px;
+        }
+
+        #filletView {
+            width: 32px;
+        }
+    </style>
+    <link rel="stylesheet" href="switch.css">
+    <script type="text/javascript" src="imageCrop.js"></script>
+    <script>
+        window.onload = () => {
+            const canvas = document.getElementById("canvas"),
+                context = canvas.getContext("2d"),
+                select = document.getElementById("select"),
+                target = document.getElementById("target"),
+                fillet = document.getElementById("fillet"),
+                filletView = document.getElementById("filletView"),
+                imgFile = new Image();
+
+            let canvasSize = -1;//画布缩放标志量，负数表示不可缩放
+            target.width = target.height = 64;
+
+            document.getElementById("files").onchange = function () {
+                const reader = new FileReader();
+
+                reader.readAsDataURL(this.files[0]);
+                reader.onload = () => imgFile.src = reader.result;
+            };
+
+            imgFile.onload = ()=> {
+                canvas.width = imgFile.width;
+                canvas.height = imgFile.height;
+                context.drawImage(imgFile, 0, 0);
+
+                select.style.top = canvas.offsetTop - 1 + "px";
+                select.style.left = canvas.offsetLeft - 1 + "px";
+                select.onclick();
+            };
+
+            
+            document.getElementById("switch").onchange = ()=> canvasSize = -canvasSize;
+
+            canvas.onmousewheel = event => {
+                if (canvasSize > 0) {
+                    event.wheelDelta > 0 ? canvasSize += 0.02 : canvasSize -= 0.02;
+                    
+                    canvas.width = imgFile.width * canvasSize;
+                    canvas.height = imgFile.height * canvasSize;
+                    context.scale(canvasSize, canvasSize);
+                    context.drawImage(imgFile, 0, 0);
+                    select.onclick();
+                    return false;
+                }
+            };
+
+            canvas.onclick = event => {
+                let coordX = event.pageX - canvas.parentNode.offsetLeft,
+                    coordY = event.pageY - canvas.parentNode.offsetTop,
+                    rgba = context.getImageData(coordX,coordY,1,1).data;
+                select.style.backgroundColor = `rgb(${rgba[0]},${rgba[1]},${rgba[2]})`;
+            };
+
+            select.onmousewheel = () => canvas.onmousewheel(event);
+
+            document.getElementById("selectHeight").oninput = function() {
+                select.style.height = this.value + "px";
+                target.height = parseInt(this.value);
+                select.onclick();
+            };
+            document.getElementById("selectWidth").oninput = function() {
+                select.style.width = this.value + "px";
+                target.width = parseInt(this.value);
+                select.onclick();
+            };
+
+            finiteDrag(select, canvas);
+
+            select.onclick = ()=> {
+                if (imgFile.width > 0) {
+                    let x = select.offsetLeft - canvas.offsetLeft,
+                        y = select.offsetTop - canvas.offsetTop;
+
+                    filletCorner(target, fillet.value, canvas, x, y);
+                }
+            };
+
+            fillet.oninput = function(){
+                filletView.value = this.value;
+                select.style.borderRadius = select.offsetWidth * this.value / 100 + "px";
+                select.onclick();
+            };
+
+            filletView.oninput = function(){
+                fillet.val(this.value);
+                select.style.borderRadius = select.offsetWidth * this.value / 100 + "px";
+                select.onclick();
+            };
+
+            document.getElementById("add").onclick = ()=> {
+                const temp = document.createElement("canvas");
+
+                temp.width = target.width;
+                temp.height = target.height;
+                //判断target非空白画布
+                if(temp.toDataURL() !== target.toDataURL()){
+                    showItem(target, document.getElementById("bag"));
+                } 
+            };
+        }
+    </script>
+</head>
+<body>
+<h1 style="margin-left:200px;">图片切片工具</h1><br>
+<br><br>
+<div id="tools">
+    <input id="files" type="file">
+    <label for="selectHeight"><b>切片高度：</b></label>
+    <input id="selectHeight" type="number" min="0" max="500" value="64">
+    <label for="selectWidth"><b>宽度:</b></label>
+    <input id="selectWidth" type="number" min="0" max="500" value="64">
+    <label for="switch" style="margin-left:20px;"><b>缩放</b></label>
+    <div id="mySwitch">
+        <input type="checkbox" id="switch" name="switch">
+        <label for="switch" id="switch-label">
+            <span id="switchBg"></span>
+            <span id="knob"></span>
+        </label>
+    </div>
+</div>
+<br>
+<div style="position:relative;">
+    <canvas id="canvas"></canvas>
+    <div id="select"></div>
+</div>
+<br>
+<div id="container">
+    <div style="display:flex;align-items:center;">
+        <h3>预览：</h3>
+        <h4>圆角</h4>
+        <label for="fillet"></label>
+        <input type="range" id="fillet" min="0" max="50" value="0">
+        <label for="filletView"></label>
+        <input type="number" id="filletView" min="0" max="50" value="0">
+    </div>
+    <canvas id="target"></canvas>
+    <button id="add">添加</button>
+</div>
+<ul id="bag"></ul>
+</body>
+</html>

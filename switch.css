@@ -1,0 +1,77 @@
+
+#mySwitch {
+    position: relative;
+    width: 44px;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+#switch {
+    display: none;
+}
+
+#switch-label {
+    display: block;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid #999999;
+    border-radius: 8px;
+}
+
+#switchBg {
+    display: block;
+    width: 200%;
+    margin-left: -100%;
+    transition: margin 0.3s ease-in 0s;
+}
+
+#switchBg:before,
+#switchBg:after {
+    display: block;
+    float: left;
+    width: 50%;
+    height: 16px;
+    padding: 0;
+    line-height: 16px;
+    font-size: 6px;
+    color: white;
+    font-family: Trebuchet, Arial, sans-serif;
+    font-weight: bold;
+    box-sizing: border-box;
+}
+
+#switchBg:before {
+    content: "ON";
+    padding-left: 4px;
+    background-color: #4FACDB;
+    color: #FFFFFF;
+}
+
+#switchBg:after {
+    content: "OFF";
+    padding-right: 4px;
+    background-color: #F50E4C;
+    color: #FAFAFA;
+    text-align: right;
+}
+
+#knob {
+    display: inline-block;
+    width: 12px;
+    height:12px;
+    background: #FFFFFF;
+    position: absolute;
+    right: 24px;
+    border: 2px solid #999999;
+    border-radius: 18px;
+    transition: all 0.3s ease-in 0s;
+}
+
+#switch:checked + #switch-label #switchBg {
+    margin-left: 0;
+}
+
+#switch:checked + #switch-label #knob {
+    right: 2px;
+}
